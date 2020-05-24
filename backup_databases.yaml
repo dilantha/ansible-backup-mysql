@@ -1,0 +1,18 @@
+---
+- hosts: all
+  vars:
+    prefix: "{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
+  tasks:
+    - name: dump
+      shell: mysqldump -uroot -p{{ dump_pass }} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ item }}.sql
+      loop: "{{ databases }}"
+    - name: sync
+      synchronize:
+        src: "*.sql"
+        dest: "{{ backup_root }}/{{ inventory_hostname }}/"
+        mode: pull
+    - name: cleanup
+      file:
+        path: "{{ item }}.sql"
+        state: absent
+      loop: "{{ databases }}"
