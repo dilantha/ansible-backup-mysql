@@ -1,7 +1,7 @@
 ---
 - hosts: all
   vars:
-    prefix: "{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
+    suffix: "{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
   tasks:
     - name: dump
       shell: mysqldump -uroot -p{{ dump_pass }} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ item }}.sql
@@ -11,6 +11,12 @@
         src: "*.sql"
         dest: "{{ backup_root }}/{{ inventory_hostname }}/"
         mode: pull
+    - name: copy
+      local_action: command cp "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql" "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
+      loop: "{{ databases }}"
+    - name: compress
+      local_action: command gzip "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
+      loop: "{{ databases }}"
     - name: cleanup
       file:
         path: "{{ item }}.sql"
