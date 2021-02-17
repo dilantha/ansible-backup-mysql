@@ -21,7 +21,8 @@ Here is a sample configuration file. Make sure you don’t push these files up t
 
 ```yaml
 backup_root: ~/Backup/Databases
-dump_pass: <database dump password>
+user: database user
+pass: database password
 databases:
   - db1
   - db2

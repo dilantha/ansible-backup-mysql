@@ -3,22 +3,43 @@
   vars:
     suffix: "{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
   tasks:
-    - name: dump
-      shell: mysqldump -uroot -p{{ dump_pass }} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ item }}.sql
-      loop: "{{ databases }}"
-    - name: sync
-      synchronize:
-        src: "*.sql"
-        dest: "{{ backup_root }}/{{ inventory_hostname }}/"
-        mode: pull
-    - name: copy
-      local_action: command cp "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql" "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
-      loop: "{{ databases }}"
-    - name: compress
-      local_action: command gzip "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
-      loop: "{{ databases }}"
-    - name: cleanup
-      file:
-        path: "{{ item }}.sql"
-        state: absent
-      loop: "{{ databases }}"
+    - name: Backup databases
+      block:
+        - name: determine hosts that are up
+          wait_for_connection:
+            timeout: 5
+          vars:
+            ansible_connection: ssh
+
+        - name: add devices with connectivity to the "running_hosts" group
+          group_by:
+            key: "running_hosts"
+
+        - name: dump
+          shell: mysqldump -u{{ user }} -p{{ pass }} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ item }}.sql
+          loop: "{{ databases }}"
+
+        - name: sync
+          synchronize:
+            src: "*.sql"
+            dest: "{{ backup_root }}/{{ inventory_hostname }}/"
+            mode: pull
+
+        - name: copy
+          local_action: command cp "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql" "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
+          loop: "{{ databases }}"
+
+        - name: compress
+          local_action: command gzip "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
+          loop: "{{ databases }}"
+
+        - name: cleanup
+          file:
+            path: "{{ item }}.sql"
+            state: absent
+          loop: "{{ databases }}"
+      rescue:
+          - name:
+            debug: msg="cannot connect to {{inventory_hostname}}"
+          - name: Handle failure
+            local_action: command /usr/local/bin/terminal-notifier -title "Backup failed" -message "Coudn't backup databases"
