@@ -1,3 +1,3 @@
 #!/bin/bash
 
-ansible-playbook -i hosts backup_databases.yaml -vv
+ansible-playbook -i hosts playbook.yaml -vv

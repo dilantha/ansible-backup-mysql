@@ -62,7 +62,7 @@ This tells Ansible to use a local connection instead of trying to connect via SS
 
 Run the script with a local `hosts` file like below or with your own Ansible inventory configuration.
 ```
-ansible-playbook -i hosts backup_databases.yaml
+ansible-playbook -i hosts playbook.yaml
 ```
 
 This will dump each database to an sql file on the server and sync them back to your machine.
