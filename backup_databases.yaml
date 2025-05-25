@@ -1,45 +1,110 @@
 ---
 - hosts: all
   vars:
-    suffix: "{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
+    suffix: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
   tasks:
     - name: Backup databases
       block:
+        # Skip SSH connectivity checks for hosts with ansible_connection=local
+        - name: Check if host is local
+          set_fact:
+            is_local_host: "{{ ansible_connection == 'local' }}"
         - name: determine hosts that are up
           wait_for_connection:
             timeout: 5
           vars:
             ansible_connection: ssh
+          when: not is_local_host
 
         - name: add devices with connectivity to the "running_hosts" group
           group_by:
             key: "running_hosts"
+          when: not is_local_host
 
-        - name: dump
-          shell: mysqldump -u{{ user }} -p{{ pass }} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ item }}.sql
+        # Ensure backup directory exists for local hosts
+        - name: ensure backup directory exists
+          local_action:
+            module: file
+            path: "{{ backup_root }}/{{ inventory_hostname }}"
+            state: directory
+            mode: 0755
+          when: is_local_host
+
+        # Remote database dump
+        - name: dump remote databases
+          shell: "mysqldump -u{{ user }}{% if pass is defined and pass != '' %} -p{{ pass }}{% endif %} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ item }}.sql"
           loop: "{{ databases }}"
+          when: not is_local_host
 
-        - name: sync
+        # Local database dump
+        - name: dump local databases
+          local_action:
+            module: shell
+            cmd: "mysqldump -u{{ user }}{% if pass is defined and pass != '' %} -p{{ pass }}{% endif %} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql"
+          loop: "{{ databases }}"
+          when: is_local_host
+
+        # For remote hosts, synchronize the files
+        - name: sync from remote
           synchronize:
             src: "*.sql"
             dest: "{{ backup_root }}/{{ inventory_hostname }}/"
             mode: pull
+          when: not is_local_host
 
+        # Create timestamped copies
         - name: copy
           local_action: command cp "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql" "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
           loop: "{{ databases }}"
 
+        # Compress the timestamped copies
         - name: compress
           local_action: command gzip "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
           loop: "{{ databases }}"
 
-        - name: cleanup
+        # Cleanup remote SQL files
+        - name: cleanup remote files
           file:
             path: "{{ item }}.sql"
             state: absent
           loop: "{{ databases }}"
+          when: not is_local_host
+          
+        # Remove old backups
+        - name: remove old backups
+          local_action:
+            module: find
+            paths: "{{ backup_root }}/{{ inventory_hostname }}"
+            patterns: "{{ item }}_*.sql.gz"
+            age: "{{ retention_days | default(7) }}d"
+            age_stamp: mtime
+            recurse: no
+          register: old_backups
+          loop: "{{ databases }}"
+          
+        - name: delete old backups
+          local_action:
+            module: file
+            path: "{{ item.1.path }}"
+            state: absent
+          loop: "{{ old_backups.results | subelements('files') }}"
+          when: old_backups.results is defined
       rescue:
-          - name:
-            debug: msg="cannot connect to {{inventory_hostname}}"
-          - name: Handle failure
-            local_action: command /usr/local/bin/terminal-notifier -title "Backup failed" -message "Coudn't backup databases"
+          - name: debug error
+            debug: 
+              msg: "cannot connect to {{inventory_hostname}}"
+
+          - name: Check if terminal-notifier exists
+            local_action: shell which terminal-notifier || echo "not-found"
+            register: terminal_notifier_check
+            changed_when: false
+
+          - name: Handle failure with terminal-notifier
+            local_action: command terminal-notifier -title "Backup failed" -message "Could not backup databases"
+            when: terminal_notifier_check.stdout != "not-found"
+            ignore_errors: yes
+            
+          - name: Handle failure with simple notification
+            local_action: shell osascript -e 'display notification "Could not backup databases" with title "Backup failed"'
+            when: terminal_notifier_check.stdout == "not-found" and ansible_distribution == "MacOSX"
+            ignore_errors: yes

@@ -22,7 +22,9 @@ Here is a sample configuration file. Make sure you don’t push these files up t
 ```yaml
 backup_root: ~/Backup/Databases
 user: database user
-pass: database password
+pass: database password  # Leave empty if no password is required
+retention_days: 7  # Number of days to keep backups
+is_local: false    # Set to true for local databases
 databases:
   - db1
   - db2
@@ -35,9 +37,26 @@ databases:
 ├── host2
 ```
 
-`dump_pass` is your MySQL password for taking the backup. Its probably a good idea to create a separate backup user that has read and lock table access to your databases on each server.
+`user` is your MySQL username for taking the backup.
+
+`pass` is your MySQL password for taking the backup. If left empty or set to an empty string (`""`), no password will be used. This is useful for MySQL configurations that use socket authentication or other passwordless methods. Set to your password when authentication is required.
 
 `databases` is a list of databases you want to dump.
+
+`retention_days` is the number of days to keep backups before they are automatically removed. If not specified, defaults to 7 days.
+
+`is_local` should be set to true if the MySQL server is running on your local machine. This parameter is retained for backward compatibility, but the recommended approach is to use `ansible_connection=local` in the hosts file.
+
+### Local Hosts Configuration
+
+For hosts that represent your local machine, add them to the `hosts` file with the `ansible_connection=local` parameter:
+
+```
+localhost ansible_connection=local
+mylocalmachine ansible_connection=local
+```
+
+This tells Ansible to use a local connection instead of trying to connect via SSH. This is the preferred way to handle local hosts.
 
 ## Running the script
 
