@@ -74,3 +74,35 @@ host2
 ├── db3.sql
 ├── db4.sql
 ```
+
+## Setting Up Scheduled Backups
+
+You can set up a cronjob to run the playbook automatically on a schedule. This ensures your MySQL databases are backed up regularly without manual intervention.
+
+### Example: Daily Backup at 12 PM
+
+To schedule the playbook to run every day at 12 PM (noon), add the following to your crontab:
+
+1. Open your crontab for editing:
+```
+crontab -e
+```
+
+2. Add the following line (adjust the path to match your actual playbook location):
+```
+0 12 * * * cd /path/to/ansible-backup-mysql && ansible-playbook -i hosts playbook.yaml >> /path/to/ansible-backup-mysql/backup.log 2>&1
+```
+
+This will:
+- Run the playbook every day at 12:00 PM
+- Change to the playbook directory before execution
+- Log both standard output and errors to a backup.log file
+
+### Crontab Reference
+
+For more information about crontab format and options, refer to the [Crontab Quick Reference](https://crontab.guru/) or the [Crontab Manual](https://man7.org/linux/man-pages/man5/crontab.5.html).
+
+You can adjust the schedule as needed. For example, to run at 3 AM every Monday, you would use:
+```
+0 3 * * 1 cd /path/to/ansible-backup-mysql && ansible-playbook -i hosts playbook.yaml >> /path/to/ansible-backup-mysql/backup.log 2>&1
+```
