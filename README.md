@@ -25,27 +25,56 @@ user: database user
 pass: database password  # Leave empty if no password is required
 retention_days: 7  # Number of days to keep backups
 is_local: false    # Set to true for local databases
+
+# Binary paths (optional) - customize these based on your system
+# mysqldump_binary: /opt/homebrew/bin/mysqldump  # Default for Homebrew on macOS
+# gzip_binary: gzip                              # Default system gzip  
+# cp_binary: cp                                  # Default system cp
+
 databases:
   - db1
   - db2
 ```
 
-`backup_root` is the backup root folder for backups. A subfolder will be created for each host you add like this.
+## Configuration Variables
 
+### Required Variables
+- `backup_root`: The backup root folder for backups. A subfolder will be created for each host.
+- `user`: Your MySQL username for taking the backup.
+- `databases`: A list of databases you want to dump.
+
+### Optional Variables
+- `pass`: Your MySQL password for taking the backup. If left empty or set to an empty string (`""`), no password will be used. This is useful for MySQL configurations that use socket authentication or other passwordless methods.
+- `retention_days`: The number of days to keep backups before they are automatically removed. Defaults to 7 days if not specified.
+- `is_local`: Should be set to true if the MySQL server is running on your local machine. This parameter is retained for backward compatibility, but the recommended approach is to use `ansible_connection=local` in the hosts file.
+
+### Binary Path Variables
+You can customize the paths to system binaries by setting these variables in your host_vars or group_vars:
+
+- `mysqldump_binary`: Path to the mysqldump command. Defaults to `/opt/homebrew/bin/mysqldump` (Homebrew on macOS).
+- `gzip_binary`: Path to the gzip command. Defaults to `gzip`.
+- `cp_binary`: Path to the cp command. Defaults to `cp`.
+
+#### Examples for Different Systems:
+
+**macOS with Homebrew:**
+```yaml
+mysqldump_binary: /opt/homebrew/bin/mysqldump
+gzip_binary: /opt/homebrew/bin/gzip
+cp_binary: /bin/cp
 ```
-├── host1
-├── host2
+
+**Linux (Ubuntu/Debian/CentOS):**
+```yaml
+mysqldump_binary: /usr/bin/mysqldump
+gzip_binary: /bin/gzip
+cp_binary: /bin/cp
 ```
 
-`user` is your MySQL username for taking the backup.
-
-`pass` is your MySQL password for taking the backup. If left empty or set to an empty string (`""`), no password will be used. This is useful for MySQL configurations that use socket authentication or other passwordless methods. Set to your password when authentication is required.
-
-`databases` is a list of databases you want to dump.
-
-`retention_days` is the number of days to keep backups before they are automatically removed. If not specified, defaults to 7 days.
-
-`is_local` should be set to true if the MySQL server is running on your local machine. This parameter is retained for backward compatibility, but the recommended approach is to use `ansible_connection=local` in the hosts file.
+**Custom MySQL Installation:**
+```yaml
+mysqldump_binary: /usr/local/mysql/bin/mysqldump
+```
 
 ### Local Hosts Configuration
 

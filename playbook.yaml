@@ -2,6 +2,10 @@
 - hosts: all
   vars:
     suffix: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
+    # Default paths - can be overridden in host_vars or group_vars
+    mysqldump_path: "{{ mysqldump_binary | default('/opt/homebrew/bin/mysqldump') }}"
+    gzip_path: "{{ gzip_binary | default('gzip') }}"
+    cp_path: "{{ cp_binary | default('cp') }}"
   tasks:
     - name: Backup databases
       block:
@@ -32,7 +36,7 @@
 
         # Remote database dump
         - name: dump remote databases
-          shell: "mysqldump -u{{ user }}{% if pass is defined and pass != '' %} -p{{ pass }}{% endif %} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ item }}.sql"
+          shell: "{{ mysqldump_path }} -u{{ user }}{% if pass is defined and pass != '' %} -p{{ pass }}{% endif %} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ item }}.sql"
           loop: "{{ databases }}"
           when: not is_local_host
 
@@ -40,7 +44,7 @@
         - name: dump local databases
           local_action:
             module: shell
-            cmd: "mysqldump -u{{ user }}{% if pass is defined and pass != '' %} -p{{ pass }}{% endif %} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql"
+            cmd: "{{ mysqldump_path }} -u{{ user }}{% if pass is defined and pass != '' %} -p{{ pass }}{% endif %} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql"
           loop: "{{ databases }}"
           when: is_local_host
 
@@ -54,12 +58,12 @@
 
         # Create timestamped copies
         - name: copy
-          local_action: command cp "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql" "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
+          local_action: command {{ cp_path }} "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql" "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
           loop: "{{ databases }}"
 
         # Compress the timestamped copies
         - name: compress
-          local_action: command gzip "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
+          local_action: command {{ gzip_path }} "{{ backup_root }}/{{ inventory_hostname }}/{{ item }}_{{ suffix }}.sql"
           loop: "{{ databases }}"
 
         # Cleanup remote SQL files

@@ -1,0 +1,4 @@
+# Configuration for Linux hosts
+mysqldump_binary: /usr/bin/mysqldump
+gzip_binary: /bin/gzip
+cp_binary: /bin/cp

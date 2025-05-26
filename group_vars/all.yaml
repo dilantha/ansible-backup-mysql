@@ -1,0 +1,27 @@
+# Global defaults for all hosts
+# These can be overridden in host_vars or by specific group_vars
+
+# Default binary paths for different operating systems
+# Uncomment and customize based on your environment
+
+# For macOS with Homebrew
+# mysqldump_binary: /opt/homebrew/bin/mysqldump
+# gzip_binary: /opt/homebrew/bin/gzip
+# cp_binary: /bin/cp
+
+# For Linux (Ubuntu/Debian)
+# mysqldump_binary: /usr/bin/mysqldump
+# gzip_binary: /bin/gzip
+# cp_binary: /bin/cp
+
+# For CentOS/RHEL
+# mysqldump_binary: /usr/bin/mysqldump
+# gzip_binary: /bin/gzip
+# cp_binary: /bin/cp
+
+# Default retention period (days)
+retention_days: 7
+
+# Default MySQL connection settings
+user: root
+pass: ""
