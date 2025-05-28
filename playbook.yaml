@@ -25,14 +25,13 @@
             key: "running_hosts"
           when: not is_local_host
 
-        # Ensure backup directory exists for local hosts
+        # Ensure backup directory exists for all hosts
         - name: ensure backup directory exists
           local_action:
             module: file
             path: "{{ backup_root }}/{{ inventory_hostname }}"
             state: directory
             mode: 0755
-          when: is_local_host
 
         # Remote database dump
         - name: dump remote databases
@@ -99,16 +98,27 @@
               msg: "cannot connect to {{inventory_hostname}}"
 
           - name: Check if terminal-notifier exists
-            local_action: shell which terminal-notifier || echo "not-found"
+            local_action: shell which terminal-notifier 2>/dev/null || echo "not-found"
             register: terminal_notifier_check
             changed_when: false
 
+          - name: Check if osascript exists (macOS)
+            local_action: shell which osascript 2>/dev/null || echo "not-found"
+            register: osascript_check
+            changed_when: false
+
           - name: Handle failure with terminal-notifier
-            local_action: command terminal-notifier -title "Backup failed" -message "Could not backup databases"
+            local_action: command terminal-notifier -title "Backup failed" -message "Could not backup databases for {{ inventory_hostname }}"
             when: terminal_notifier_check.stdout != "not-found"
             ignore_errors: yes
             
-          - name: Handle failure with simple notification
-            local_action: shell osascript -e 'display notification "Could not backup databases" with title "Backup failed"'
-            when: terminal_notifier_check.stdout == "not-found" and ansible_distribution == "MacOSX"
+          - name: Handle failure with macOS notification
+            local_action: shell osascript -e 'display notification "Could not backup databases for {{ inventory_hostname }}" with title "Backup failed"'
+            when: terminal_notifier_check.stdout == "not-found" and osascript_check.stdout != "not-found"
             ignore_errors: yes
+
+          - name: Log failure message
+            local_action:
+              module: debug
+              msg: "Backup failed for {{ inventory_hostname }} - could not connect to host"
+            when: terminal_notifier_check.stdout == "not-found" and osascript_check.stdout == "not-found"

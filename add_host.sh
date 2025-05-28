@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # Script to add a new host to MySQL backup configuration
 # It will add the host to the hosts file and create a corresponding host_vars file
