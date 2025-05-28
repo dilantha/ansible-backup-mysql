@@ -26,12 +26,36 @@
           when: not is_local_host
 
         # Ensure backup directory exists for all hosts
+        - name: check if backup root is accessible
+          local_action:
+            module: stat
+            path: "{{ backup_root }}"
+          register: backup_root_stat
+          ignore_errors: yes
+
+        - name: create backup root directory if needed
+          local_action:
+            module: file
+            path: "{{ backup_root }}"
+            state: directory
+            mode: 0755
+          when: not backup_root_stat.stat.exists
+          ignore_errors: yes
+
         - name: ensure backup directory exists
           local_action:
             module: file
             path: "{{ backup_root }}/{{ inventory_hostname }}"
             state: directory
             mode: 0755
+            recurse: yes
+          register: backup_dir_result
+          ignore_errors: yes
+
+        - name: check backup directory creation result
+          fail:
+            msg: "Failed to create backup directory {{ backup_root }}/{{ inventory_hostname }}. Please check permissions or create the directory manually."
+          when: backup_dir_result.failed and backup_dir_result.msg is defined
 
         # Remote database dump
         - name: dump remote databases
