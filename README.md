@@ -135,3 +135,22 @@ You can adjust the schedule as needed. For example, to run at 3 AM every Monday,
 ```
 0 3 * * 1 cd /path/to/ansible-backup-mysql && ansible-playbook -i hosts playbook.yaml >> /path/to/ansible-backup-mysql/backup.log 2>&1
 ```
+## Local MySQL and retention
+
+Local MySQL startup is opt-in. To start MySQL when stopped and wait for it
+before dumping, add this to the local host's ignored `host_vars` file:
+
+```yaml
+start_local_mysql: true
+# Optional overrides; defaults shown for Homebrew on macOS:
+mysqladmin_binary: /opt/homebrew/bin/mysqladmin
+mysql_server_binary: /opt/homebrew/bin/mysql.server
+```
+
+Startup and readiness checks only run for hosts using `ansible_connection=local`
+with `start_local_mysql: true`. MySQL remains running after the backup. By default,
+the playbook expects MySQL to be running already.
+
+Failed local dumps preserve the previous SQL file. `retention_days` (default 7)
+applies to timestamped compressed SQL dumps in `backup_root/<host>/`.
+Plain SQL files hold the latest successful dumps.

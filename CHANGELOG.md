@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Opt-in local MySQL startup and readiness checks with configurable binary paths.
+
+### Fixed
+- Preserve previous local SQL files when a database dump fails.
+
 ## [1.1.0] - 2025-05-25
 
 ### Added
