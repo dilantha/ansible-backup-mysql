@@ -63,11 +63,33 @@
           loop: "{{ databases }}"
           when: not is_local_host
 
+        - name: start local MySQL when stopped
+          ansible.builtin.shell: |
+            {{ mysqladmin_binary | default('/opt/homebrew/bin/mysqladmin') | quote }} -u{{ user | quote }} ping --silent >/dev/null 2>&1 || {{ mysql_server_binary | default('/opt/homebrew/bin/mysql.server') | quote }} start
+          delegate_to: localhost
+          when: is_local_host and (start_local_mysql | default(false) | bool)
+          changed_when: false
+
+        - name: wait for local MySQL readiness
+          ansible.builtin.command:
+            argv:
+              - "{{ mysqladmin_binary | default('/opt/homebrew/bin/mysqladmin') }}"
+              - "-u{{ user }}"
+              - ping
+              - --silent
+          delegate_to: localhost
+          register: mysql_ready
+          retries: 30
+          delay: 2
+          until: mysql_ready.rc == 0
+          changed_when: false
+          when: is_local_host and (start_local_mysql | default(false) | bool)
+
         # Local database dump
         - name: dump local databases
           local_action:
             module: shell
-            cmd: "{{ mysqldump_path }} -u{{ user }}{% if pass is defined and pass != '' %} -p{{ pass }}{% endif %} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql"
+            cmd: "{{ mysqldump_path }} -u{{ user }}{% if pass is defined and pass != '' %} -p{{ pass }}{% endif %} --skip-dump-date --skip-extended-insert --quick {{ item }} > {{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql.tmp && mv {{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql.tmp {{ backup_root }}/{{ inventory_hostname }}/{{ item }}.sql"
           loop: "{{ databases }}"
           when: is_local_host
 
@@ -116,6 +138,7 @@
             state: absent
           loop: "{{ old_backups.results | subelements('files') }}"
           when: old_backups.results is defined
+
       rescue:
           - name: debug error
             debug: 
